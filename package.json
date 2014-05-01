@@ -1,6 +1,6 @@
 {
   "name": "pagedown-editor",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "pagedown editor package for Node",
   "repository": {
     "type": "git",
@@ -12,7 +12,8 @@
   "license": "MIT",
   "files": [
     "Markdown.Editor.js",
-    "node-editor.js"
+    "node-editor.js",
+    "wmd-buttons.png"
   ],
   "main": "node-editor.js",
   "bugs": {
