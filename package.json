@@ -1,0 +1,22 @@
+{
+  "name": "pagedown-editor",
+  "version": "0.0.1",
+  "description": "pagedown editor package for Node",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rtfb/pagedown-editor"
+  },
+  "keywords": [
+    "markdown"
+  ],
+  "license": "MIT",
+  "files": [
+    "Markdown.Editor.js",
+    "node-editor.js"
+  ],
+  "main": "node-editor.js",
+  "bugs": {
+    "url": "https://github.com/rtfb/pagedown-editor/issues"
+  },
+  "homepage": "https://github.com/rtfb/pagedown-editor"
+}
