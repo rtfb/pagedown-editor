@@ -26,18 +26,21 @@ function getPagedownEditor() {
 global.window.getPagedownEditor = getPagedownEditor;
 ```
 
-Then, during build time, browserify that file and copy the buttons:
+Then, during build time, browserify that file and copy the buttons and the
+stylesheet:
 
 ``` sh
 $ browserify foo.js -o bundle.js
 $ cp node_modules/pagedown-editor/wmd-buttons.png static/
+$ cp node_modules/pagedown-editor/pagedown.css static/
 ```
 
 Finally, use the bundle like this in your html:
 
 ``` html
 <!-- among headers, instead of Markdown.*.js, include your bundle: -->
-<script type="text/javascript" src="bundle.js"></script>
+<link rel="stylesheet" href="/static/pagedown.css">
+<script type="text/javascript" src="/static/bundle.js"></script>
 
 <!-- ...
     Then at the end of body, invoke the editor with this one-liner: -->
