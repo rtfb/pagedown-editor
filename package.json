@@ -20,5 +20,8 @@
   "bugs": {
     "url": "https://github.com/rtfb/pagedown-editor/issues"
   },
-  "homepage": "https://github.com/rtfb/pagedown-editor"
+  "homepage": "https://github.com/rtfb/pagedown-editor",
+  "devDependencies": {
+    "pagedown": "~1.1.0"
+  }
 }
