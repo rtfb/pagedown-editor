@@ -51,6 +51,10 @@ Finally, use the bundle like this in your html:
 </script>
 ```
 
+For your convenience there's a [sample.html](sample.html) with all of the above
+in one place (but note that to have it working in your browser, you will need to
+adjust the paths to the css, js bundle and image buttons in pagedow.css).
+
 ## License
 
 MIT license, see [LICENSE.txt](LICENSE.txt).

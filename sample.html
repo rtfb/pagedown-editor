@@ -1,0 +1,31 @@
+<html lang="en">
+    <head>
+        <link rel="stylesheet" href="pagedown.css">
+        <script type="text/javascript" src="bundle.js"></script>
+    </head>
+    <body>
+    <div class="container">
+        <div class="wmd-panel">
+            <div>
+                <div id="wmd-preview" class="wmd-preview">
+                </div>
+            </div>
+            <div>
+                <div id="wmd-button-bar">
+                </div>
+            </div>
+            <textarea
+                id="wmd-input"
+                class="wmd-input"
+                name="text"
+                placeholder="Type markdown here"
+                ></textarea>
+        </div>
+        </div>
+        <script type="text/javascript">
+        (function () {
+             getPagedownEditor().run();
+             })();
+        </script>
+    </body>
+</html>
