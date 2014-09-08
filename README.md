@@ -14,7 +14,7 @@ $ npm install pagedown-editor
 
 ## Usage
 
-In some file, say, `foo.js`, create an entry point to the editor:
+In some file, say, [sample.js](sample.js), create an entry point to the editor:
 
 ``` js
 var editor = require("pagedown-editor");
@@ -30,7 +30,7 @@ Then, during build time, browserify that file and copy the buttons and the
 stylesheet:
 
 ``` sh
-$ browserify foo.js -o bundle.js
+$ browserify sample.js -o bundle.js
 $ cp node_modules/pagedown-editor/wmd-buttons.png static/
 $ cp node_modules/pagedown-editor/pagedown.css static/
 ```
@@ -52,8 +52,9 @@ Finally, use the bundle like this in your html:
 ```
 
 For your convenience there's a [sample.html](sample.html) with all of the above
-in one place (but note that to have it working in your browser, you will need to
-adjust the paths to the css, js bundle and image buttons in pagedow.css).
+in one place. After installation it will work out of the box from within your
+`node_modules` directory, just direct your browser to `file:///<path
+to>/node_modules/pagedown-editor/sample.html`.
 
 ## License
 
