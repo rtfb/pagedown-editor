@@ -1,9 +1,8 @@
 # Node package for PageDown Editor
 
-The original [PageDown](https://github.com/balpha/pagedown) repo only packages
-server-side code in its [Node module](https://www.npmjs.org/package/pagedown).
-This package also packages the editor, intended to be used along with
-[Browserify](http://browserify.org/).
+The original [PageDown][pagedown-repo] repo only packages server-side code in
+its [Node module][pagedown-module]. This package also packages the editor,
+intended to be used along with [Browserify](http://browserify.org/).
 
 ## Installation
 
@@ -59,3 +58,6 @@ to>/node_modules/pagedown-editor/sample.html`.
 ## License
 
 MIT license, see [LICENSE.txt](LICENSE.txt).
+
+[pagedown-repo]: https://github.com/StackExchange/pagedown
+[pagedown-module]: https://www.npmjs.org/package/pagedown
