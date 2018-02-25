@@ -36,7 +36,7 @@
 
         image: "Image <img> Ctrl+G",
         imagedescription: "enter image description here",
-        imagedialog: "<p><b>Insert Image</b></p><p>http://example.com/images/diagram.jpg \"optional title\"<br><br>Need <a href='http://www.google.com/search?q=free+image+hosting' target='_blank'>free image hosting?</a></p>",
+        imagedialog: "<p><b>Insert Image</b></p><p>http://example.com/images/diagram.jpg \"optional title\"</p>",
 
         olist: "Numbered List <ol> Ctrl+O",
         ulist: "Bulleted List <ul> Ctrl+U",
@@ -51,7 +51,10 @@
         redo: "Redo - Ctrl+Y",
         redomac: "Redo - Ctrl+Shift+Z",
 
-        help: "Markdown Editing Help"
+        help: "Markdown Editing Help",
+
+        ok: "OK",
+        cancel: "Cancel"
     };
 
 
@@ -74,6 +77,8 @@
     // options, if given, can have the following properties:
     //   options.helpButton = { handler: yourEventHandler }
     //   options.strings = { italicexample: "slanted text" }
+    //   options.wrapImageInLink = true
+    //   options.convertImagesToLinks = true
     // `yourEventHandler` is the click handler for the help button.
     // If `options.helpButton` isn't given, not help button is created.
     // `options.strings` can have any or all of the same properties as
@@ -101,17 +106,22 @@
             options.strings.help = options.strings.help || options.helpButton.title;
         }
         var getString = function (identifier) { return options.strings[identifier] || defaultsStrings[identifier]; }
-
+        
         idPostfix = idPostfix || "";
+
+        this.getPostfix = function () { return idPostfix; }
 
         var hooks = this.hooks = new Markdown.HookCollection();
         hooks.addNoop("onPreviewRefresh");       // called with no arguments after the preview has been refreshed
         hooks.addNoop("postBlockquoteCreation"); // called with the user's selection *after* the blockquote was created; should return the actual to-be-inserted text
-        hooks.addFalse("insertLinkDialog")
         hooks.addFalse("insertImageDialog");     /* called with one parameter: a callback to be called with the URL of the image. If the application creates
                                                   * its own image insertion dialog, this hook should return true, and the callback should be called with the chosen
                                                   * image url (or null if the user cancelled). If this hook returns false, the default dialog will be used.
                                                   */
+        hooks.addNoop("imageConvertedToLink");  // called with no arguments if an image was converted 
+        hooks.addFalse("insertLinkDialog");     /* called with one parameter: a callback to be called with the URL.
+                                                 * works identical to insertImageDialog (see above)
+                                                 */
 
         this.getConverter = function () { return markdownConverter; }
 
@@ -123,7 +133,7 @@
                 return; // already initialized
 
             panels = new PanelCollection(idPostfix);
-            var commandManager = new CommandManager(hooks, getString, markdownConverter);
+            var commandManager = new CommandManager(hooks, getString, markdownConverter, options.wrapImageInLink, options.convertImagesToLinks);
             var previewManager = new PreviewManager(markdownConverter, panels, function () { hooks.onPreviewRefresh(); });
             var undoManager, uiManager;
 
@@ -1060,10 +1070,12 @@
     //
     // text: The html for the input box.
     // defaultInputText: The default value that appears in the input box.
+    // ok: The text for the OK button
+    // cancel: The text for the Cancel button
     // callback: The function which is executed when the prompt is dismissed, either via OK or Cancel.
     //      It receives a single argument; either the entered text (if OK was chosen) or null (if Cancel
     //      was chosen).
-    ui.prompt = function (text, defaultInputText, callback) {
+    ui.prompt = function (text, defaultInputText, ok, cancel, callback) {
 
         // These variables need to be declared at this level since they are used
         // in multiple functions.
@@ -1112,7 +1124,7 @@
 
 
         // Create the text input box form/window.
-        var createDialog = function () {
+        var createDialog = function (ok, cancel) {
 
             // The main dialog box.
             dialog = doc.createElement("div");
@@ -1154,7 +1166,7 @@
             var okButton = doc.createElement("input");
             okButton.type = "button";
             okButton.onclick = function () { return close(false); };
-            okButton.value = "OK";
+            okButton.value = ok;
             style = okButton.style;
             style.margin = "10px";
             style.display = "inline";
@@ -1165,7 +1177,7 @@
             var cancelButton = doc.createElement("input");
             cancelButton.type = "button";
             cancelButton.onclick = function () { return close(true); };
-            cancelButton.value = "Cancel";
+            cancelButton.value = cancel;
             style = cancelButton.style;
             style.margin = "10px";
             style.display = "inline";
@@ -1191,12 +1203,11 @@
             dialog.style.marginLeft = -(position.getWidth(dialog) / 2) + "px";
 
         };
-
         // Why is this in a zero-length timeout?
         // Is it working around a browser bug?
         setTimeout(function () {
 
-            createDialog();
+            createDialog(ok, cancel);
 
             var defTextLen = defaultInputText.length;
             if (input.selectionStart !== undefined) {
@@ -1527,10 +1538,12 @@
 
     }
 
-    function CommandManager(pluginHooks, getString, converter) {
+    function CommandManager(pluginHooks, getString, converter, wrapImageInLink, convertImagesToLinks) {
         this.hooks = pluginHooks;
         this.getString = getString;
         this.converter = converter;
+        this.wrapImageInLink = wrapImageInLink;
+        this.convertImagesToLinks = convertImagesToLinks;
     }
 
     var commandProto = CommandManager.prototype;
@@ -1639,7 +1652,7 @@
         chunk.after = this.stripLinkDefs(chunk.after, defsToAdd);
 
         var defs = "";
-        var regex = /(\[)((?:\[[^\]]*\]|[^\[\]])*)(\][ ]?(?:\n[ ]*)?\[)(\d+)(\])/g;
+        var regex = /\[(\d+)\]/g;
         
         // The above regex, used to update [foo][13] references after renumbering,
         // is much too liberal; it can catch things that are not actually parsed
@@ -1665,23 +1678,9 @@
         
         var fakedefs = "\n\n";
 
-        // the regex is tested on the (up to) three chunks separately, and on substrings,
-        // so in order to have the correct offsets to check against okayToModify(), we
-        // have to keep track of how many characters are in the original source before
-        // the substring that we're looking at. Note that doLinkOrImage aligns the selection
-        // on potential brackets, so there should be no major breakage from the chunk
-        // separation.
-        var skippedChars = 0;
-
-        var uniquified = complete.replace(regex, function uniquify(wholeMatch, before, inner, afterInner, id, end, offset) {
-            skippedChars += offset;
-            fakedefs += " [" + skippedChars + "]: " + testlink + skippedChars + "/unicorn\n";
-            skippedChars += before.length;
-            inner = inner.replace(regex, uniquify);
-            skippedChars -= before.length;
-            var result = before + inner + afterInner + skippedChars + end;
-            skippedChars -= offset;
-            return result;
+        var uniquified = complete.replace(regex, function uniquify(wholeMatch, id, offset) {
+            fakedefs += " [" + offset + "]: " + testlink + offset + "/unicorn\n";
+            return "[" + offset + "]";
         });
         
         rendered = this.converter.makeHtml(uniquified + fakedefs);
@@ -1690,26 +1689,40 @@
             return rendered.indexOf(testlink + offset + "/unicorn") !== -1;
         }
         
-        var addDefNumber = function (def) {
+        // property names are "L_" + link (prefixed to prevent collisions with built-in properties),
+        // values are the definition numbers
+        var addedDefsByUrl = {};
+        var addOrReuseDefNumber = function (def) {
+            var stripped = def.replace(/^[ ]{0,3}\[(\d+)\]:/, "");
+            var key = "L_" + stripped;
+            if (key in addedDefsByUrl)
+                return addedDefsByUrl[key];
             refNumber++;
-            def = def.replace(/^[ ]{0,3}\[(\d+)\]:/, "  [" + refNumber + "]:");
+            def = "  [" + refNumber + "]:" + stripped;
             defs += "\n" + def;
+            addedDefsByUrl[key] = refNumber;
+            return refNumber;
         };
+
+        // the regex is tested on the (up to) three chunks separately,
+        // so in order to have the correct offsets to check against okayToModify(), we
+        // have to keep track of how many characters are in the original source before
+        // the substring that we're looking at. Note that doLinkOrImage aligns the selection
+        // on potential brackets, so there should be no major breakage from the chunk
+        // separation.
+        var skippedChars = 0;
 
         // note that
         // a) the recursive call to getLink cannot go infinite, because by definition
         //    of regex, inner is always a proper substring of wholeMatch, and
         // b) more than one level of nesting is neither supported by the regex
         //    nor making a lot of sense (the only use case for nesting is a linked image)
-        var getLink = function (wholeMatch, before, inner, afterInner, id, end, offset) {
+        var getLink = function (wholeMatch, id, offset) {
             if (!okayToModify(skippedChars + offset))
                 return wholeMatch;
-            skippedChars += offset + before.length;
-            inner = inner.replace(regex, getLink);
-            skippedChars -= offset + before.length;
             if (defsToAdd[id]) {
-                addDefNumber(defsToAdd[id]);
-                return before + inner + afterInner + refNumber + end;
+                var refnum = addOrReuseDefNumber(defsToAdd[id]);
+                return "[" + refnum + "]";
             }
             return wholeMatch;
         };
@@ -1719,15 +1732,14 @@
         skippedChars += len;
         
         len = chunk.selection.length;
+        var refOut;
         if (linkDef) {
-            addDefNumber(linkDef);
+            refOut = addOrReuseDefNumber(linkDef);
         }
         else {
             chunk.selection = chunk.selection.replace(regex, getLink);
         }
         skippedChars += len;        
-
-        var refOut = refNumber;
 
         chunk.after = chunk.after.replace(regex, getLink);
 
@@ -1797,6 +1809,8 @@
         chunk.trimWhitespace();
         chunk.findTags(/\s*!?\[/, /\][ ]?(?:\n[ ]*)?(\[.*?\])?/);
         var background;
+        var wrapImageInLink = this.wrapImageInLink;
+        var convertImagesToLinks = this.convertImagesToLinks;
 
         if (chunk.endTag.length > 1 && chunk.startTag.length > 0) {
 
@@ -1848,8 +1862,20 @@
                     var linkDef = " [999]: " + properlyEncoded(link);
 
                     var num = that.addLinkDef(chunk, linkDef);
-                    chunk.startTag = isImage ? "![" : "[";
-                    chunk.endTag = "][" + num + "]";
+                    if (!isImage || (wrapImageInLink && !convertImagesToLinks))
+                    {
+                        chunk.startTag = "[";
+                        chunk.endTag = "][" + num + "]";
+                    }
+                    if (isImage)
+                    {
+                        if (!convertImagesToLinks) {
+                            chunk.startTag += "![";
+                        } else {
+                            chunk.startTag += "[";
+                        }
+                        chunk.endTag = "][" + num + "]" + chunk.endTag;
+                    }
 
                     if (!chunk.selection) {
                         if (isImage) {
@@ -1859,19 +1885,23 @@
                             chunk.selection = that.getString("linkdescription");
                         }
                     }
+
+                    if (isImage && convertImagesToLinks) {
+                        that.hooks.imageConvertedToLink();
+                    }
                 }
                 postProcessing();
-                that.hooks.insertLinkDialog()
             };
 
             background = ui.createBackground();
 
             if (isImage) {
                 if (!this.hooks.insertImageDialog(linkEnteredCallback))
-                    ui.prompt(this.getString("imagedialog"), imageDefaultText, linkEnteredCallback);
+                    ui.prompt(this.getString("imagedialog"), imageDefaultText, this.getString("ok"), this.getString("cancel"), linkEnteredCallback);
             }
             else {
-                ui.prompt(this.getString("linkdialog"), linkDefaultText, linkEnteredCallback);
+                if (!this.hooks.insertLinkDialog(linkEnteredCallback))
+                    ui.prompt(this.getString("linkdialog"), linkDefaultText, this.getString("ok"), this.getString("cancel"), linkEnteredCallback);
             }
             return true;
         }
@@ -1958,7 +1988,7 @@
         // Go backwards as many lines a possible, such that each line
         //  a) starts with ">", or
         //  b) is almost empty, except for whitespace, or
-        //  c) is preceeded by an unbroken chain of non-empty lines
+        //  c) is preceded by an unbroken chain of non-empty lines
         //     leading up to a line that starts with ">" and at least one more character
         // and in addition
         //  d) at least one line fulfills a)
@@ -2273,7 +2303,7 @@
         chunk.skipLines(1, 1);
 
         // We make a level 2 header if there is no current header.
-        // If there is a header level, we substract one from the header level.
+        // If there is a header level, we subtract one from the header level.
         // If it's already a level 1 header, it's removed.
         var headerLevelToCreate = headerLevel == 0 ? 2 : headerLevel - 1;
 
